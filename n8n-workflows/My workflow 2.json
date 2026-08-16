@@ -1,0 +1,256 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        -304
+      ],
+      "id": "496adc18-b8ea-4835-815f-cca5bad177ac",
+      "name": "When chat message received",
+      "webhookId": "4091fa09-fb9a-4039-9411-7104d213f601"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a customer service assistant for a clothing store in Tunisia that sells robes and clothing for men, women, and children.\n\nAlways reply in the same language the customer used in their message. If they write in Arabic, reply in Arabic. If they write in French, reply in French. If they write in English, reply in English. If they mix languages in one message, reply in whichever language dominates their message, and if truly unclear, default to the language of their most recent message rather than switching languages mid-conversation. Never respond in a different language than the customer used just because the underlying data (product names, store info) is in English — translate the meaning naturally into the customer's language.\n\nYou have two tools:\n- A product tool, for the product catalog: names, prices, sizes, colors, and stock. It can search for a specific product by name, or return the full product list when no name is given.\n- A knowledge base tool, for general store information: delivery, opening hours, location, exchanges, and policies.\n\nTool selection rules (follow exactly):\n- If the message mentions a product, clothing item, price, size, color, stock, \"cheapest,\" \"most expensive,\" or \"available\" → use the product tool.\n- If the message mentions delivery, hours, location, exchanges, or general store policy → use the knowledge base tool.\n- When unsure, prefer the product tool for anything that could relate to an item for sale.\n- If a question needs both tools, use both before answering.\n\nWhen calling the product query tool, always provide a complete, non-empty SQL SELECT statement. Never call the tool with an empty or missing query. The product tool only filters by product name — never pass a status, price, or description like \"out of stock\" or \"cheap\" into a name search. For questions about stock status, price ranges, or \"what's available,\" query with no name filter to get the full product list, then reason over the returned data yourself.\n\nAnswer using ONLY what the tools return. Never guess or invent a price, size, stock count, delivery detail, or policy. If a tool genuinely returns nothing relevant after a reasonable search, say so plainly and tell the customer to contact the store directly — don't give up without trying the tool first.\n\nAvoid unearned claims like \"our best,\" \"most popular,\" or implying popularity/quality you don't have data for. Warm, friendly phrasing is fine — just don't state opinions or rankings as if they were facts.\n\nAnswer the question directly, in the first sentence. Don't repeat the question back, don't summarize what you're about to say, don't add unnecessary disclaimers before getting to the point.\n\nSound like a real person working at the store, not a script. Keep it short and warm — a sentence or two is usually enough. It's fine to ask a quick clarifying question if the customer's request is ambiguous instead of guessing.\n\nIf the question is unrelated to the store (weather, general topics, etc.), redirect politely in one line and steer back to how you can help with the store."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        336,
+        -304
+      ],
+      "id": "b401dea2-6cc1-4b6f-8437-256e669b4d70",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        -80
+      ],
+      "id": "31352f38-7e76-4a77-8838-9a93320dd846",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yqzGpoZfVO4cetkB",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        400,
+        128
+      ],
+      "id": "9dfa87f6-29e1-42ff-97fe-23a217646f99",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yqzGpoZfVO4cetkB",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Searches the store's knowledge base for information about products, delivery, opening hours, location, sizes, exchanges, and frequently asked questions. Use this tool whenever the customer asks a factual question about the store.",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        -80
+      ],
+      "id": "452969e3-a05b-4e76-88dd-8902b1151413",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "nAk5DMjUPbHacP3d",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get many rows in Supabase\nSearches or lists products including name, price, size, color, and stock. Use for ANY question about products, pricing (including \"cheapest\" or \"most expensive\"), availability, or stock — even if no exact product name is mentioned.",
+        "operation": "getAll",
+        "tableId": "products",
+        "limit": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Limit', ``, 'number') }}",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "condition": "ilike",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('conditions0_Field_Value', `\"Leave empty to return all products. Only fill in a specific product name if the customer mentioned one.`, 'string') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -80
+      ],
+      "id": "8334d738-ad5a-475e-b7cc-ef7bb9e496c9",
+      "name": "Get many rows in Supabase",
+      "credentials": {
+        "supabaseApi": {
+          "id": "nAk5DMjUPbHacP3d",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $fromAI(\"query\", \"A complete PostgreSQL SELECT statement querying the products table (columns: id, name, price, size, color, stock_quantity). Example: SELECT * FROM products WHERE price < 100 ORDER BY price ASC\") }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        736,
+        -80
+      ],
+      "id": "c4b8ef41-7839-499f-b3e3-b0e9cccbbdee",
+      "name": "Execute a SQL query in Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "ikMFMza4t0jtnQFM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        192,
+        -80
+      ],
+      "id": "722213f0-d699-4ecc-a07f-08cf3223c7bd",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows in Supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query in Postgres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "246bde79-42c2-418e-a899-2f76dc0fc6ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7386096af12e743c222b6684b07881b7c4393816e4816a539735ebf932fc057f"
+  },
+  "nodeGroups": [],
+  "id": "eFNOFn3RhcWHabk2",
+  "tags": []
+}
